@@ -37,31 +37,57 @@ two commits, not one message with "and" in it.
 ```
 
 - **type**: from the list below, lowercase.
-- **scope**: optional noun in parentheses naming the affected area (`api`, `parser`, `deps`). Take it from scopes the repo already uses; do not invent a parallel vocabulary.
+- **scope**: optional noun in parentheses naming the affected area (`api`, `parser`, `deps`). Take it from scopes the repo already uses; do not invent a parallel vocabulary. Never use an issue identifier as a scope.
 - **!**: marks a breaking change, before the colon.
-- **description**: imperative mood, lowercase, no trailing period.
+- **description**: mandatory. Imperative, present tense, first letter not capitalized, no trailing period.
 - **body**: optional, blank line before it, wrapped at 72 columns.
-- **footers**: optional, blank line before them, git trailer format (`Token: value`).
+- **footers**: optional, blank line before them, git trailer format (`Token: value`). Mandatory for a breaking change the description does not explain.
+
+Three commits do not follow this format:
+
+| Commit | Message |
+|---|---|
+| Initial commit | `chore: init` |
+| Merge commit | git's default: `Merge branch '<branch name>'` |
+| Revert commit | git's default: `Revert "<reverted commit subject line>"` |
 
 ## Types
 
-| Type | Use for | Semver |
-|---|---|---|
-| `feat` | a new capability a user can reach | minor |
-| `fix` | a bug fix a user can observe | patch |
-| `perf` | same behavior, measurably faster | patch |
-| `refactor` | restructuring with no behavior change | none |
-| `docs` | documentation only | none |
-| `test` | tests only | none |
-| `build` | build system, dependencies, packaging | none |
-| `ci` | pipeline configuration | none |
-| `chore` | maintenance touching none of the above | none |
-| `revert` | reverting an earlier commit, referenced in the footer | varies |
+Changes relevant to the API or UI:
 
-Picking between them: did behavior a user can see change? Yes and it is new →
-`feat`. Yes and it was wrong before → `fix`. No, only the shape of the code →
-`refactor`. No, only the speed → `perf`. `chore` is the last resort, not the
-default.
+| Type | Use for |
+|---|---|
+| `feat` | add, adjust, or remove a feature of the API or UI |
+| `fix` | fix an API or UI bug of a preceding `feat` commit |
+
+Other changes:
+
+| Type | Use for |
+|---|---|
+| `refactor` | rewrite or restructure code without changing API or UI behavior |
+| `perf` | a `refactor` that improves performance |
+| `style` | code style only (white space, formatting, missing semicolons), no behavior change |
+| `test` | add missing tests or correct existing ones |
+| `docs` | documentation only |
+| `build` | build tools, dependencies, project version |
+| `ci` | CI/CD pipeline configuration |
+| `ops` | infrastructure (IaC), deployment scripts, backups, monitoring, recovery procedures |
+| `chore` | tasks such as the initial commit or editing `.gitignore` |
+
+Picking between them: did the API or UI change? Yes → `feat`, or `fix` when
+it repairs an earlier `feat`. Removing a feature is `feat` too. No, only the
+shape of the code → `refactor`, or `perf` when that makes it faster. How the
+software is built → `build`. How the pipeline runs → `ci`. How the software
+is deployed, run, monitored, backed up, or recovered → `ops`. `chore` is the
+last resort, not the default.
+
+## Versioning
+
+The commits of a release choose its version:
+
+- A breaking API or UI change (`!`) increments the major version.
+- Otherwise, a `feat` increments the minor version.
+- Otherwise, increment the patch version.
 
 ## The description
 
@@ -75,8 +101,9 @@ It completes the sentence "If applied, this commit will ___".
 ## The body
 
 Include one when the subject cannot carry the reason. State why the change was
-needed and what it does differently, not a line-by-line account of the diff:
-the diff is already in the commit.
+needed and contrast it with the previous behavior, not a line-by-line account
+of the diff: the diff is already in the commit. Use the imperative, present
+tense, as in the description.
 
 Worth a body: a non-obvious root cause, a rejected alternative, a constraint
 that forced the approach, a behavior change a reader would not expect from the
@@ -108,12 +135,24 @@ the error.
 ```
 
 The `BREAKING CHANGE:` footer states what broke and what callers do about it.
-`!` alone tells a reader something broke without telling them what.
+`!` alone tells a reader something broke without telling them what. The
+footer is mandatory when the description does not say what broke.
+
+The footer starts with the exact words `BREAKING CHANGE:`. A one-line
+explanation follows after a space. A multi-line explanation starts after two
+newlines:
+
+```
+BREAKING CHANGE:
+
+Lookup previously returned a zero value for a missing key.
+It now returns ErrNotFound.
+```
 
 ## Footers
 
-- `Refs: #123`, `Closes #123`, `Fixes #123` if its related to issues.
-- `Reverts: <sha>` on a revert commit.
+- Issue references: `Refs: #123`, `Closes #123`, `Fixes JIRA-456`.
+- `BREAKING CHANGE:` as above.
 
 ## Never
 
@@ -141,7 +180,15 @@ refactor(store): extract the retry loop into withRetry
 
 docs(readme): document the timeout flag default
 
-revert: feat(parser): accept ISO 8601 durations
+ops(helm): add a PodDisruptionBudget to the api deployment
 
-Reverts: 4f2a1c9
+build: update dependencies
+
+feat(api)!: remove the ticket list endpoint
+
+BREAKING CHANGE: the ticket endpoints no longer list all entities.
+
+Revert "feat(parser): accept ISO 8601 durations"
+
+This reverts commit 4f2a1c9.
 ```
